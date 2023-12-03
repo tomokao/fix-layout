@@ -38,7 +38,7 @@ impl Backend for X11 {
                 window_class_atom,
             })
         })()
-        .or_else(|x| Err(BackendError::Initialize { source: x }))
+        .map_err(|x| BackendError::Initialize { source: x })
     }
 
     fn active_window_matches<F>(&mut self, attribute: WindowAttribute, predicate: F) -> bool
