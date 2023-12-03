@@ -34,7 +34,7 @@ fn main() {
     let regex = Regex::new(&args.regex).unwrap();
     loop {
         backend.wait_for_active_window();
-        _ = (if backend.active_window_matches(&regex) {
+        _ = (if backend.active_window_matches(|s| regex.is_match(s)) {
             command_from_string(&args.active_command)
         } else {
             command_from_string(&args.unactive_command)

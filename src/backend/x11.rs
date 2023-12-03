@@ -38,7 +38,10 @@ impl Backend for X11 {
         .or_else(|x| Err(BackendError::Initialize { source: x }))
     }
 
-    fn active_window_matches(&mut self, regex: &regex::Regex) -> bool {
+    fn active_window_matches<F>(&mut self, predicate: F) -> bool
+    where
+        F: FnOnce(&str) -> bool,
+    {
         (|| {
             let root = self.connection.default_screen().root;
             let active_window_id = self
@@ -69,7 +72,7 @@ impl Backend for X11 {
                 .ok()?
                 .value;
 
-            Some(regex.is_match(&String::from_utf8_lossy(&window_title)))
+            Some(predicate(&String::from_utf8_lossy(&window_title)))
         })()
         .unwrap_or(false)
     }

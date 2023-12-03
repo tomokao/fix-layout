@@ -1,9 +1,10 @@
-use regex::Regex;
 use thiserror::Error;
 
 pub trait Backend: Sized {
     fn create() -> Result<Self, BackendError>;
-    fn active_window_matches(&mut self, regex: &Regex) -> bool;
+    fn active_window_matches<F>(&mut self, predicate: F) -> bool
+    where
+        F: FnOnce(&str) -> bool;
     fn wait_for_active_window(&mut self);
 }
 
