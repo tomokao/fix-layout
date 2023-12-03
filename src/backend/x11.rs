@@ -7,12 +7,13 @@ use breadx::{
     },
 };
 
-use super::{Backend, BackendError};
+use super::{Backend, BackendError, WindowAttribute};
 
 pub struct X11 {
     connection: DisplayConnection,
     active_window_atom: u32,
     window_name_atom: u32,
+    window_class_atom: u32,
 }
 
 impl Backend for X11 {
@@ -28,17 +29,19 @@ impl Backend for X11 {
                 .intern_atom_immediate(true, "_NET_ACTIVE_WINDOW")?
                 .atom;
             let window_name_atom = connection.intern_atom_immediate(true, "WM_NAME")?.atom;
+            let window_class_atom = connection.intern_atom_immediate(true, "WM_CLASS")?.atom;
 
             Ok::<X11, Box<dyn std::error::Error>>(Self {
                 connection,
                 active_window_atom,
                 window_name_atom,
+                window_class_atom,
             })
         })()
         .or_else(|x| Err(BackendError::Initialize { source: x }))
     }
 
-    fn active_window_matches<F>(&mut self, predicate: F) -> bool
+    fn active_window_matches<F>(&mut self, attribute: WindowAttribute, predicate: F) -> bool
     where
         F: FnOnce(&str) -> bool,
     {
@@ -59,20 +62,41 @@ impl Backend for X11 {
                 .next()?;
             // https://github.com/bread-graphics/breadx/issues/92
             let any_type_atom: u8 = breadx::protocol::xproto::AtomEnum::ANY.into();
-            let window_title = self
-                .connection
-                .get_property_immediate(
-                    false,
-                    active_window_id,
-                    self.window_name_atom,
-                    any_type_atom,
-                    0,
-                    1024,
-                )
-                .ok()?
-                .value;
 
-            Some(predicate(&String::from_utf8_lossy(&window_title)))
+            match attribute {
+                WindowAttribute::Name => {
+                    let window_title = self
+                        .connection
+                        .get_property_immediate(
+                            false,
+                            active_window_id,
+                            self.window_name_atom,
+                            any_type_atom,
+                            0,
+                            1024,
+                        )
+                        .ok()?
+                        .value;
+
+                    Some(predicate(&String::from_utf8_lossy(&window_title)))
+                }
+                WindowAttribute::Class => {
+                    let window_class = self
+                        .connection
+                        .get_property_immediate(
+                            false,
+                            active_window_id,
+                            self.window_class_atom,
+                            any_type_atom,
+                            0,
+                            1024,
+                        )
+                        .ok()?
+                        .value;
+
+                    Some(predicate(&String::from_utf8_lossy(&window_class)))
+                }
+            }
         })()
         .unwrap_or(false)
     }
