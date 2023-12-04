@@ -41,9 +41,9 @@ impl Backend for X11 {
         .map_err(|x| BackendError::Initialize { source: x })
     }
 
-    fn active_window_matches<F>(&mut self, attribute: WindowAttribute, predicate: F) -> bool
+    fn active_window_matches<F>(&mut self, attribute: WindowAttribute, mut predicate: F) -> bool
     where
-        F: FnOnce(&str) -> bool,
+        F: FnMut(&str) -> bool,
     {
         (|| {
             let root = self.connection.default_screen().root;
@@ -77,7 +77,7 @@ impl Backend for X11 {
                         )
                         .ok()?
                         .value;
-
+                    println!("{:?}", &String::from_utf8_lossy(&window_title));
                     Some(predicate(&String::from_utf8_lossy(&window_title)))
                 }
                 WindowAttribute::Class => {
@@ -94,7 +94,13 @@ impl Backend for X11 {
                         .ok()?
                         .value;
 
-                    Some(predicate(&String::from_utf8_lossy(&window_class)))
+                    let class = String::from_utf8_lossy(&window_class);
+                    Some(
+                        (&class)
+                            .split('\0')
+                            .filter(|s| !s.is_empty())
+                            .any(predicate),
+                    )
                 }
             }
         })()
